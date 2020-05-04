@@ -1,240 +1,237 @@
 import random
-import numpy as np
-import sklearn.linear_model as lm
+from prettytable import PrettyTable
 from scipy.stats import f, t
 from functools import partial
-from pyDOE2 import *
 
+x1min = -6
+x1max = 10
+x2min = -10
+x2max = 5
+x3min = -9
+x3max = 3
 
-def regression(x, b):
-    y = sum([x[i] * b[i] for i in range(len(x))])
-    return y
+x_aver_min = (x1min + x2min + x3min) / 3
+x_aver_max = (x1max + x2max + x3max) / 3
 
+x1_aver = (x1max + x1min) / 2
+x2_aver = (x2max + x2min) / 2
+x3_aver = (x3max + x3min) / 2
 
-x_range = ((-6, 10), (-10, 5), (-9, 3))
+x1del = x1max - x1_aver
+x2del = x2max - x2_aver
+x3del = x3max - x3_aver
 
-x_aver_max = sum([x[1] for x in x_range]) / 3
-x_aver_min = sum([x[0] for x in x_range]) / 3
-
-y_max = 200 + int(x_aver_max)
 y_min = 200 + int(x_aver_min)
+y_max = 200 + int(x_aver_max)
 
+aver = []
+aver_arr = []
+def main (m=3):
+    print("Рівняння регресії")
+    print("y=b0+b1*x1+b2*x2+b3*x3+b12*x1*x2+b13*x1*x3+b23*x2*x3+b123*x1*x2*x3+b11*x1^2+b22*x2^2+b33*x3^2")
 
-# квадратна дисперсія
-def s_kv(y, y_aver, n, m):
-    res = []
-    for i in range(n):
-        s = sum([(y_aver[i] - y[i][j]) ** 2 for j in range(m)]) / m
-        res.append(round(s, 3))
-    return res
+    Y_ALL = [[random.randint(y_min, y_max) for _ in range(15)] for _ in range(m)]
 
+    x0_norm = [1] * 15
+    x1_norm = [-1, -1, -1, -1, 1, 1, 1, 1, -1.215, 1.215, 0, 0, 0, 0, 0]
+    x2_norm = [-1, -1, 1, 1, -1, -1, 1, 1, 0, 0, -1.215, 1.215, 0, 0, 0]
+    x3_norm = [-1, 1, -1, 1, -1, 1, -1, 1, 0, 0, 0, 0, -1.215, 1.215, 0]
+    x12_norm = [x * y for x, y in zip(x1_norm, x2_norm)]
+    x13_norm = [x * y for x, y in zip(x1_norm, x3_norm)]
+    x23_norm = [x * y for x, y in zip(x2_norm, x3_norm)]
+    x123_norm = [x * y * z for x, y, z in zip(x1_norm, x2_norm, x3_norm)]
+    x11_norm = [x * x for x in x1_norm]
+    x22_norm = [x * x for x in x2_norm]
+    x33_norm = [x * x for x in x3_norm]
 
-def plan_matrix5(n, m):
-    print('\nЛабораторна 5')
-    print(f'\nГереруємо матрицю планування для n = {n}, m = {m}')
-
-    y = np.zeros(shape=(n, m))
-    for i in range(n):
-        for j in range(m):
-            y[i][j] = random.randint(y_min, y_max)
-
-    if n > 14:
-        no = n - 14
-    else:
-        no = 1
-    x_norm = ccdesign(3, center=(0, no))
-    x_norm = np.insert(x_norm, 0, 1, axis=1)
-
-    for i in range(4, 11):
-        x_norm = np.insert(x_norm, i, 0, axis=1)
-
-    l = 1.215
-
-    for i in range(len(x_norm)):
-        for j in range(len(x_norm[i])):
-            if x_norm[i][j] < -1 or x_norm[i][j] > 1:
-                if x_norm[i][j] < 0:
-                    x_norm[i][j] = -l
-                else:
-                    x_norm[i][j] = l
-
-    def add_sq_nums(x):
-        for i in range(len(x)):
-            x[i][4] = x[i][1] * x[i][2]
-            x[i][5] = x[i][1] * x[i][3]
-            x[i][6] = x[i][2] * x[i][3]
-            x[i][7] = x[i][1] * x[i][3] * x[i][2]
-            x[i][8] = x[i][1] ** 2
-            x[i][9] = x[i][2] ** 2
-            x[i][10] = x[i][3] ** 2
-        return x
-
-    x_norm = add_sq_nums(x_norm)
-
-    x = np.ones(shape=(len(x_norm), len(x_norm[0])), dtype=np.int64)
-    for i in range(8):
-        for j in range(1, 4):
-            if x_norm[i][j] == -1:
-                x[i][j] = x_range[j - 1][0]
+    def x_filler (arr, xmin, xmax, xdel, x_aver):
+        l = []
+        for i in arr:
+            if i == -1:
+                l.append(xmin)
+            elif abs(i) == 1.215:
+                l.append(i * xdel + x_aver)
             else:
-                x[i][j] = x_range[j - 1][1]
+                l.append(xmax)
+        return l
 
-    for i in range(8, len(x)):
-        for j in range(1, 3):
-            x[i][j] = (x_range[j - 1][0] + x_range[j - 1][1]) / 2
+    x1 = x_filler(x1_norm, x1min, x1max, x1del, x1_aver)
+    x2 = x_filler(x2_norm, x2min, x2max, x2del, x2_aver)
+    x3 = x_filler(x3_norm, x3min, x3max, x3del, x3_aver)
+    x12 = [x * y for x, y in zip(x1, x2)]
+    x13 = [x * y for x, y in zip(x1, x3)]
+    x23 = [x * y for x, y in zip(x2, x3)]
+    x123 = [x * y * z for x, y, z in zip(x1, x2, x3)]
+    x11 = [x * x for x in x1]
+    x22 = [x * x for x in x2]
+    x33 = [x * x for x in x3]
 
-    dx = [x_range[i][1] - (x_range[i][0] + x_range[i][1]) / 2 for i in range(3)]
+    def table (names, values):
+        pretty = PrettyTable()
+        for i in range(len(names)):
+            pretty.add_column(names[i], values[i])
+        print(pretty, "\n")
 
-    x[8][1] = l * dx[0] + x[9][1]
-    x[9][1] = -l * dx[0] + x[9][1]
-    x[10][2] = l * dx[1] + x[9][2]
-    x[11][2] = -l * dx[1] + x[9][2]
-    x[12][3] = l * dx[2] + x[9][3]
-    x[13][3] = -l * dx[2] + x[9][3]
+    names = ["X0", "X1", "X2", "X3", "X1X2", "X1X3", "X2X3", "X1X2X3", "X1^2", "X2^2", "X3^2"]
+    values = [x0_norm, x1_norm, x2_norm, x3_norm, x12_norm, x13_norm, x23_norm, x123_norm, x11_norm, x22_norm, x33_norm]
+    table(names, values)
 
-    x = add_sq_nums(x)
+    print(f"Матриця для m={m}")
 
-    print('\nX:\n', x)
-    print('\nX нормоване:\n')
-    for i in x_norm:
-        print([round(x, 2) for x in i])
-    print('\nY:\n', y)
+    def re_zip (allYValues):
+        l = [[0 for _ in range(len(allYValues))] for _ in range(len(allYValues[0]))]
+        for i in range(len(allYValues)):
+            for j in range(len(allYValues[i])):
+                l[j][i] = allYValues[i][j]
+        return l
 
-    return x, y, x_norm
+    Y_ALL = [[random.randint(y_min, y_max) for _ in range(15)] for _ in range(m)]
+    Y_ROWS = re_zip(Y_ALL)
+    Y_ROWS_AV = [sum(x) / len(x) for x in Y_ROWS]
 
+    for i in range(len(Y_ALL)):
+        names.append(f"Y{i+1}")
+        values.append(Y_ALL[i])
+    names.append("Y_AVERAGE")
+    values.append(Y_ROWS_AV)
 
-def find_coef(X, Y, norm=False):
-    skm = lm.LinearRegression(fit_intercept=False)
-    skm.fit(X, Y)
-    B = skm.coef_
+    table(names, values)
+    #################################################################################
+    disp = [0] * 15
 
-    if norm == 1:
-        print('\nКоефіцієнти рівняння регресії з нормованими X:')
+    for i in range(15):
+        disp[i] = sum([(Y_ROWS_AV[i] - Y_ROWS[i][j]) ** 2 for j in range(m)]) / m
+
+    Gp = max(disp) / sum(disp)
+
+    f1 = m - 1
+    f2 = N = 15
+
+    def cohren_teoretical (f1, f2, q=0.05):
+        q1 = q / f1
+        fisher_value = f.ppf(q=1 - q1, dfn=f2, dfd=(f1 - 1) * f2)
+        return fisher_value / (fisher_value + f1 - 1)
+
+    Gt = cohren_teoretical(f1, f2)
+    print("Дисперсія по рядкам")
+    for i, j in enumerate(disp):
+        print(f"{i+1}. {j:.2f}")
+    if Gp < Gt:
+        print("Дисперсія однорідна")
     else:
-        print('\nКоефіцієнти рівняння регресії:')
-    B = [round(i, 3) for i in B]
-    print(B)
-    print('\nРезультат рівняння зі знайденими коефіцієнтами:\n', np.dot(X, B))
-    return B
+        print("Дисперсія неоднорідна")
 
+    print("Критерій Стьюдента")
+    sb = sum(disp) / N
+    ssbs = sb / (m * N)
+    sbs = ssbs ** 0.5
 
-def kriteriy_cochrana(y, y_aver, n, m):
-    f1 = m - 1
-    f2 = n
-    q = 0.05
-    S_kv = s_kv(y, y_aver, n, m)
-    Gp = max(S_kv) / sum(S_kv)
-    print('\nПеревірка за критерієм Кохрена')
-    return Gp
+    bethas = [0] * 11
+    x_norm = [x0_norm, x1_norm, x2_norm, x3_norm, x12_norm, x13_norm, x23_norm, x123_norm, x11_norm, x22_norm, x33_norm]
+    for i in range(11):
+        for j in range(len(x1_norm)):
+            bethas[i] += Y_ROWS_AV[j]*x_norm[i][j]
+        bethas[i] /= 15
 
+    tethas = [abs(bethas[i]) / sbs for i in range(len(bethas))]
 
-def cohren(f1, f2, q=0.05):
-    q1 = q / f1
-    fisher_value = f.ppf(q=1 - q1, dfn=f2, dfd=(f1 - 1) * f2)
-    return fisher_value / (fisher_value + f1 - 1)
-
-
-# оцінки коефіцієнтів
-def bs(x, y_aver, n):
-    res = [sum(1 * y for y in y_aver) / n]
-
-    for i in range(len(x[0])):
-        b = sum(j[0] * j[1] for j in zip(x[:, i], y_aver)) / n
-        res.append(b)
-    return res
-
-
-def kriteriy_studenta(x, y, y_aver, n, m):
-    S_kv = s_kv(y, y_aver, n, m)
-    s_kv_aver = sum(S_kv) / n
-
-    # статиcтична оцінка дисперсії
-    s_Bs = (s_kv_aver / n / m) ** 0.5  # статистична оцінка дисперсії
-    Bs = bs(x, y_aver, n)
-    ts = [round(abs(B) / s_Bs, 3) for B in Bs]
-
-    return ts
-
-
-def kriteriy_fishera(y, y_aver, y_new, n, m, d):
-    S_ad = m / (n - d) * sum([(y_new[i] - y_aver[i]) ** 2 for i in range(len(y))])
-    S_kv = s_kv(y, y_aver, n, m)
-    S_kv_aver = sum(S_kv) / n
-
-    return S_ad / S_kv_aver
-
-
-def check(X, Y, B, n, m):
-    print('\n\tПеревірка рівняння:')
-    f1 = m - 1
-    f2 = n
     f3 = f1 * f2
-    q = 0.05
+    student_teoretical = partial(t.ppf, q=1 - 0.025)
+    T = student_teoretical(df=f3)
+    d = 0
 
-    ### табличні значення
-    student = partial(t.ppf, q=1 - q)
-    t_student = student(df=f3)
 
-    G_kr = cohren(f1, f2)
-    ###
+    for i in range(len(tethas)):
+        if tethas[i] < T:
+            bethas[i] = 0
+            print(f"Приймаємо betha{i} незначимим")
+        else:
+            aver.append(bethas[i])
+            print(f"Betha{i} = {bethas[i]}")
+            d += 1
+    aver_arr.append(sum(aver) / len(aver))
 
-    y_aver = [round(sum(i) / len(i), 3) for i in Y]
-    print('\nСереднє значення y:', y_aver)
+    yy1 = bethas[0] + bethas[1] * x1min + bethas[2] * x2min + bethas[3] * x3min + bethas[4] * x1min * x2min + bethas[
+        5] * x1min * x3min + bethas[
+              6] * x2min * x3min + bethas[7] * x1min * x2min * x3min + bethas[8] * x1min * x1min + bethas[
+              9] * x2min * x2min + bethas[
+              10] * x3min * x3min
+    yy2 = bethas[0] + bethas[1] * x1min + bethas[2] * x2min + bethas[3] * x3max + bethas[4] * x1min * x2min + bethas[
+        5] * x1min * x3max + bethas[
+              6] * x2min * x3max + bethas[7] * x1min * x2min * x3max + bethas[8] * x1min * x1min + bethas[
+              9] * x2min * x2min + bethas[
+              10] * x3max * x3max
+    yy3 = bethas[0] + bethas[1] * x1min + bethas[2] * x2max + bethas[3] * x3min + bethas[4] * x1min * x2max + bethas[
+        5] * x1min * x3min + bethas[
+              6] * x2max * x3min + bethas[7] * x1min * x2max * x3min + bethas[8] * x1min * x1min + bethas[
+              9] * x2max * x2max + bethas[
+              10] * x3min * x3min
+    yy4 = bethas[0] + bethas[1] * x1min + bethas[2] * x2max + bethas[3] * x3max + bethas[4] * x1min * x2max + bethas[
+        5] * x1min * x3max + bethas[
+              6] * x2max * x3max + bethas[7] * x1min * x2max * x3max + bethas[8] * x1min * x1min + bethas[
+              9] * x2max * x2max + bethas[
+              10] * x3max * x3max
+    yy5 = bethas[0] + bethas[1] * x1max + bethas[2] * x2min + bethas[3] * x3min + bethas[4] * x1max * x2min + bethas[
+        5] * x1max * x3min + bethas[
+              6] * x2min * x3min + bethas[7] * x1max * x2min * x3min + bethas[8] * x1max * x1max + bethas[
+              9] * x2min * x2min + bethas[
+              10] * x3min * x3min
+    yy6 = bethas[0] + bethas[1] * x1max + bethas[2] * x2min + bethas[3] * x3max + bethas[4] * x1max * x2min + bethas[
+        5] * x1max * x3max + bethas[
+              6] * x2min * x3max + bethas[7] * x1max * x2min * x3max + bethas[8] * x1max * x1max + bethas[
+              9] * x2min * x2min + bethas[
+              10] * x3min * x3max
+    yy7 = bethas[0] + bethas[1] * x1max + bethas[2] * x2max + bethas[3] * x3min + bethas[4] * x1max * x2max + bethas[
+        5] * x1max * x3min + bethas[
+              6] * x2max * x3min + bethas[7] * x1max * x2min * x3max + bethas[8] * x1max * x1max + bethas[
+              9] * x2max * x2max + bethas[
+              10] * x3min * x3min
+    yy8 = bethas[0] + bethas[1] * x1max + bethas[2] * x2max + bethas[3] * x3max + bethas[4] * x1max * x2max + bethas[
+        5] * x1max * x3max + bethas[
+              6] * x2max * x3max + bethas[7] * x1max * x2max * x3max + bethas[8] * x1max * x1max + bethas[
+              9] * x2max * x2max + bethas[
+              10] * x3min * x3max
+    yy9 = bethas[0] + bethas[1] * x1[8] + bethas[2] * x2[8] + bethas[3] * x3[8] + bethas[4] * x12[8] + bethas[5] * x13[
+        8] + bethas[6] * x23[8] + bethas[7] * \
+          x123[8] + bethas[8] * x11[8] + bethas[9] * x22[8] + bethas[10] * x33[8]
+    yy10 = bethas[0] + bethas[1] * x1[9] + bethas[2] * x2[9] + bethas[3] * x3[9] + bethas[4] * x12[9] + bethas[5] * x13[
+        9] + bethas[6] * x23[9] + bethas[7] * \
+           x123[9] + bethas[8] * x11[9] + bethas[9] * x22[9] + bethas[10] * x33[9]
+    yy11 = bethas[0] + bethas[1] * x1[10] + bethas[2] * x2[10] + bethas[3] * x3[10] + bethas[4] * x12[10] + bethas[5] * \
+           x13[10] + bethas[6] * x23[10] + bethas[
+               7] * x123[10] + bethas[8] * x11[10] + bethas[9] * x22[10] + bethas[10] * x33[10]
+    yy12 = bethas[0] + bethas[1] * x1[11] + bethas[2] * x2[11] + bethas[3] * x3[11] + bethas[4] * x12[11] + bethas[5] * \
+           x13[11] + bethas[6] * x23[11] + bethas[
+               7] * x123[11] + bethas[8] * x11[11] + bethas[9] * x22[11] + bethas[10] * x33[11]
+    yy13 = bethas[0] + bethas[1] * x1[12] + bethas[2] * x2[12] + bethas[3] * x3[12] + bethas[4] * x12[12] + bethas[5] * \
+           x13[12] + bethas[6] * x23[12] + bethas[
+               7] * x123[12] + bethas[8] * x11[12] + bethas[9] * x22[12] + bethas[10] * x33[12]
+    yy14 = bethas[0] + bethas[1] * x1[13] + bethas[2] * x2[13] + bethas[3] * x3[13] + bethas[4] * x12[13] + bethas[5] * \
+           x13[13] + bethas[6] * x23[13] + bethas[
+               7] * x123[13] + bethas[8] * x11[13] + bethas[9] * x22[13] + bethas[10] * x33[13]
+    yy15 = bethas[0] + bethas[1] * x1[14] + bethas[2] * x2[14] + bethas[3] * x3[14] + bethas[4] * x12[14] + bethas[5] * \
+           x13[14] + bethas[6] * x23[14] + bethas[
+               7] * x123[14] + bethas[8] * x11[14] + bethas[9] * x22[14] + bethas[10] * x33[14]
 
-    disp = s_kv(Y, y_aver, n, m)
-    print('Дисперсія y:', disp)
-
-    Gp = kriteriy_cochrana(Y, y_aver, n, m)
-    print(f'Gp = {Gp}')
-    if Gp < G_kr:
-        print(f'З ймовірністю {1-q} дисперсії однорідні.')
+    print("Критерій Фішера")
+    f4 = N - d
+    yy = [yy1, yy2, yy3, yy4, yy5, yy6, yy7, yy8, yy9, yy10, yy11, yy12, yy13, yy14, yy15]
+    sad = sum([(yy[i] - Y_ROWS_AV[i]) ** 2 for i in range(len(yy))]) * m / (N - d)
+    Fp = sad / sb
+    fisher_teoretical = partial(f.ppf, q=1 - 0.05)
+    Ft = fisher_teoretical(dfn=f4, dfd=f3)
+    if Ft > Fp:
+        print("Рівняння регресії адекватне оригіналу")
     else:
-        print("Необхідно збільшити кількість дослідів")
-        m += 1
-        main(n, m)
-
-    ts = kriteriy_studenta(X[:, 1:], Y, y_aver, n, m)
-    print('\nКритерій Стьюдента:\n', ts)
-    res = [t for t in ts if t > t_student]
-    final_k = [B[i] for i in range(len(ts)) if ts[i] in res]
-    print('\nКоефіцієнти {} статистично незначущі, тому ми виключаємо їх з рівняння.'.format(
-        [round(i, 3) for i in B if i not in final_k]))
-
-    y_new = []
-    for j in range(n):
-        y_new.append(regression([X[j][i] for i in range(len(ts)) if ts[i] in res], final_k))
-
-    print(f'\nЗначення "y" з коефіцієнтами {final_k}')
-    print(y_new)
-
-    d = len(res)
-    if d >= n:
-        print('\nF4 <= 0')
-        print('')
-        return
-    f4 = n - d
-
-    F_p = kriteriy_fishera(Y, y_aver, y_new, n, m, d)
-
-    fisher = partial(f.ppf, q=0.95)
-    f_t = fisher(dfn=f4, dfd=f3)  # табличне знач
-    print('\nПеревірка адекватності за критерієм Фішера')
-    print('Fp =', F_p)
-    print('F_t =', f_t)
-    if F_p < f_t:
-        print('Математична модель адекватна експериментальним даним')
-    else:
-        print('Математична модель не адекватна експериментальним даним')
+        print("Рівняння регресії не є адекватне оригіналу")
+        m+=1
+        if (m <= 100):
+            main(m)
 
 
-def main(n, m):
-    X5, Y5, X5_norm = plan_matrix5(n, m)
 
-    y5_aver = [round(sum(i) / len(i), 3) for i in Y5]
-    B5 = find_coef(X5, y5_aver)
-
-    check(X5_norm, Y5, B5, n, m)
 
 
 if __name__ == '__main__':
-    main(15, 3)
+    main()
+    print("Середнє значення значимих коефіцієнтів = ", sum(aver_arr) / 100)
